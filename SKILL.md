@@ -62,7 +62,20 @@ the source lives. The agent discovers surfaces/routes/states live each run.
 
 ## The pipeline (run these stages in order)
 
-> Create the run dir first: `RUN=<target-repo>/.sj-audit/runs/$(date +%Y%m%d-%H%M%S)` and put
+**0. Setup (first time in a repo).** If `<target-repo>/.sj-audit/config.yaml` is missing, do
+NOT silently guess — **scaffold it interactively**:
+- Read the repo (README, package manifests, run scripts, docker-compose, env usage) to infer
+  how the app starts, where the source lives, and how to log in.
+- Ask the user a short, targeted round (use the question tool) for anything you can't infer
+  confidently: the start/launch command, how to isolate (fresh DB/ports) vs. just attaching to
+  a running instance, the login shortcut, the personas, and which lenses/modules to run.
+- Write `.sj-audit/config.yaml` + `hooks/{launch,seed,healthcheck}.sh` from
+  `reference/config.example.yaml` + `reference/hook-contract.md`, `chmod +x` the hooks, add the
+  `runs/` gitignore, and **confirm with the user** (offer a dry `--quick` attach run first if
+  they have the app already running). The bundled `atrium/.sj-audit/` is the reference example.
+If the config exists, skip to stage 1.
+
+> Then create the run dir: `RUN=<target-repo>/.sj-audit/runs/$(date +%Y%m%d-%H%M%S)` and put
 > all artifacts under it. (Use a timestamp from the shell — never compute dates in JS.)
 
 **1. Preflight.** Read `config.yaml`. Resolve `lenses`, `modules`, run `mode`
