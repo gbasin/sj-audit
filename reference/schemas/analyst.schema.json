@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sj-audit/analyst",
+  "title": "Analyst output (one area, one lens)",
+  "description": "Produced by each parallel analyst: first-time-user stories + lens-grounded findings + renderable solution ideas for a single surface area under a single design lens.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["area", "lensesApplied", "summary", "stories", "findings", "solutionIdeas"],
+  "properties": {
+    "area": { "type": "string", "description": "The surface area audited, e.g. 'Onboarding, Auth & First-Run'." },
+    "lensesApplied": { "type": "array", "items": { "type": "string", "enum": ["steve-jobs", "nielsen", "dieter-rams", "wcag"] }, "minItems": 1, "description": "The design lens(es) applied in this analysis. One element for area-x-lens fan-out; several for area-all-lenses. Each finding also carries its own per-finding lens." },
+    "summary": { "type": "string", "description": "3-5 sentence verdict on this area for a first-timer, voiced in the chosen lens." },
+    "stories": {
+      "type": "array", "minItems": 5, "maxItems": 12,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["persona", "story", "firstRunMoment", "friction", "severity"],
+        "properties": {
+          "persona": { "type": "string", "description": "Persona key/label from config, e.g. 'solo self-hoster'." },
+          "story": { "type": "string", "description": "As a <persona>, I want <goal>, so that <benefit>." },
+          "firstRunMoment": { "type": "string", "description": "The concrete first-time moment this story happens in (cite a screen)." },
+          "friction": { "type": "string", "description": "What actually goes wrong or feels off today." },
+          "severity": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] }
+        }
+      }
+    },
+    "findings": {
+      "type": "array", "minItems": 5, "maxItems": 16,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "title", "where", "severity", "category", "lens", "verdict", "observation"],
+        "properties": {
+          "id": { "type": "string", "description": "Short slug unique within this area, e.g. 'onboarding-email-deadend'." },
+          "title": { "type": "string" },
+          "where": { "type": "string", "description": "Screen filename and/or code file:line — the grounding evidence." },
+          "severity": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+          "category": { "type": "string", "enum": ["clarity", "hierarchy", "copy", "defaults", "empty-state", "error-state", "a11y", "responsive", "consistency", "delight", "bug", "flow"] },
+          "lens": { "type": "string", "enum": ["steve-jobs", "nielsen", "dieter-rams", "wcag"] },
+          "principle": { "type": "string", "description": "The named principle/heuristic/criterion this maps to, e.g. 'H1 Visibility of status', 'P6 Honest', 'WCAG 1.4.3'. May be '—' for the Jobs lens." },
+          "verdict": { "type": "string", "description": "One crisp line voiced in the lens (the 'Jobs would say…' equivalent)." },
+          "observation": { "type": "string", "description": "Specific and concrete. Cite the screen/code. Distinguish real UI issues from dev-mock artifacts." },
+          "isCodeBug": { "type": "boolean", "description": "True if this is a claimed source-code defect that MUST be verified at file:line before reporting." }
+        }
+      }
+    },
+    "solutionIdeas": {
+      "type": "array", "minItems": 3, "maxItems": 10,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "kind", "addressesFindings", "description", "keyChanges"],
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "type": "string", "enum": ["refine", "bold"] },
+          "addressesFindings": { "type": "array", "items": { "type": "string" }, "description": "Finding ids this addresses." },
+          "description": { "type": "string" },
+          "keyChanges": { "type": "array", "items": { "type": "string" }, "description": "Concrete, renderable changes (layout, copy, color, component) so a designer could mock it." }
+        }
+      }
+    }
+  }
+}

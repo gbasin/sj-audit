@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sj-audit/verdict",
+  "title": "Adversarial-verify verdict",
+  "description": "Produced by a skeptic agent trying to REFUTE a finding against the code + screenshots before it reaches the report. Default to refuted when uncertain.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["findingId", "verdict", "isReal", "rationale"],
+  "properties": {
+    "findingId": { "type": "string" },
+    "verdict": { "type": "string", "enum": ["confirmed", "refuted", "uncertain"] },
+    "isReal": { "type": "boolean", "description": "True only if the finding survives a genuine attempt to refute it." },
+    "rationale": { "type": "string", "description": "Why it holds or fails. Be specific." },
+    "evidence": { "type": "string", "description": "The grounding checked: file:line and/or screenshot filename." },
+    "isMockArtifact": { "type": "boolean", "description": "True if the observation is a dev-fixture/automation artifact, not real product behavior." },
+    "severityAdjustment": { "type": "string", "enum": ["none", "raise", "lower"], "description": "Whether the verifier thinks severity should change." },
+    "suggestedSeverity": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] }
+  }
+}

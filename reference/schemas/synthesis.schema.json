@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sj-audit/synthesis",
+  "title": "Synthesis output",
+  "description": "Produced by the synthesizer: dedupes and ranks findings across all areas and lenses into a prioritized set, plus quick wins, bold bets, retractions, and a coverage map.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["executiveSummary", "northStar", "severityCounts", "topIssues", "quickWins", "boldBets", "storyThemes"],
+  "properties": {
+    "executiveSummary": { "type": "string", "description": "2-3 paragraphs on the first-time experience overall, voiced in the primary lens." },
+    "northStar": { "type": "string", "description": "The single reframing idea that would most improve first-run." },
+    "severityCounts": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "P0": { "type": "integer" }, "P1": { "type": "integer" }, "P2": { "type": "integer" }, "P3": { "type": "integer" } }
+    },
+    "topIssues": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["rank", "title", "severity", "area", "why", "recommendation", "refineVsBold"],
+        "properties": {
+          "rank": { "type": "integer" },
+          "title": { "type": "string" },
+          "severity": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+          "area": { "type": "string" },
+          "lenses": { "type": "array", "items": { "type": "string" }, "description": "Which lenses flagged this (a finding seen by several lenses ranks higher)." },
+          "why": { "type": "string", "description": "Why it matters to a first-timer." },
+          "recommendation": { "type": "string", "description": "The concrete fix." },
+          "refineVsBold": { "type": "string", "description": "One line contrasting the refine vs bold direction." },
+          "addressesFindingIds": { "type": "array", "items": { "type": "string" } },
+          "codeBug": {
+            "type": "object", "additionalProperties": false,
+            "description": "Present only when this is a claimed source-code defect.",
+            "required": ["file", "confirmed"],
+            "properties": {
+              "file": { "type": "string", "description": "file:line" },
+              "confirmed": { "type": "boolean", "description": "Set true ONLY after re-reading the source in stage 7." },
+              "note": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "quickWins": { "type": "array", "items": { "type": "string" }, "description": "High-impact, low-effort fixes." },
+    "boldBets": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "description"],
+        "properties": { "name": { "type": "string" }, "description": { "type": "string" } }
+      }
+    },
+    "storyThemes": { "type": "array", "items": { "type": "string" }, "description": "Recurring themes across the user-story corpus." },
+    "retracted": {
+      "type": "array",
+      "description": "Findings dropped after adversarial verification or code review (reported for integrity).",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["title", "why"],
+        "properties": { "title": { "type": "string" }, "why": { "type": "string", "description": "Why it was retracted (e.g. automation artifact, refuted in source)." } }
+      }
+    },
+    "coverage": {
+      "type": "object", "additionalProperties": false,
+      "description": "What the audit exercised vs missed (from the coverage critic).",
+      "properties": {
+        "tested": { "type": "array", "items": { "type": "string" } },
+        "missed": { "type": "array", "items": { "type": "string" }, "description": "Routes/states/modalities not exercised — the next round of work." },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

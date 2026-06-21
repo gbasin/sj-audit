@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sj-audit/picks",
+  "title": "Direction picks payload",
+  "description": "POSTed by the report's 'Send to host' button to /feedback, and written to runs/<ts>/feedback/picks-<ts>.{json,md}. The agent reads the .md to act on the chosen directions.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["markdown", "state"],
+  "properties": {
+    "markdown": { "type": "string", "description": "Human-readable summary of the picks (also written to picks-<ts>.md)." },
+    "state": {
+      "type": "object", "additionalProperties": false,
+      "required": ["picks"],
+      "properties": {
+        "picks": {
+          "type": "object",
+          "description": "Keyed by mockup id (m1, m2, …).",
+          "additionalProperties": {
+            "type": "object", "additionalProperties": false,
+            "properties": {
+              "choice": { "type": "string", "enum": ["today", "refine", "bold", "mix", ""], "description": "The chosen direction ('' = none / see note)." },
+              "note": { "type": "string" },
+              "title": { "type": "string", "description": "The issue/mockup title, for readability." }
+            }
+          }
+        },
+        "overall": { "type": "string", "description": "Global notes — priorities, disagreements, what to render next." }
+      }
+    },
+    "ua": { "type": "string" },
+    "ts": { "type": "string", "description": "ISO timestamp from the browser." }
+  }
+}

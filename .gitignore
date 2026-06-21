@@ -1,0 +1,11 @@
+# Per-run audit output (lives under each target repo's .sj-audit/runs/, but ignore here too)
+runs/
+*.local
+
+# Node / tooling
+node_modules/
+.DS_Store
+*.log
+
+# Scratch
+tmp/

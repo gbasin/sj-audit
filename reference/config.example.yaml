@@ -1,0 +1,66 @@
+# .sj-audit/config.yaml — thin per-app config for the sj-audit skill.
+# Pins ONLY how to stand the app up, log in, and where the source lives.
+# The agent discovers surfaces / routes / states live each run (thin-config design).
+# Gnarly launch/seed logic lives in hooks/ (see reference/hook-contract.md).
+
+name: my-app
+description: One line — what this product is, for the brief.
+
+# Where the source lives, for code-grounding findings (paths relative to the target repo).
+source:
+  web: src
+  # mobile: apps/mobile
+  # server: server/src
+  # extra docs the analysts should read for product framing:
+  docs: [README.md]
+
+run:
+  mode: isolate            # isolate (default; fresh worktree+DB+ports) | attach
+  launch: hooks/launch.sh  # MUST print BASE_URL= on stdout (see hook-contract.md)
+  healthcheck: hooks/healthcheck.sh   # optional
+  attachUrl: http://localhost:3000    # used when mode: attach, or invoked with --quick
+  defaultBranch: main      # branch the worktree is cut from when isolating
+
+# How the browser driver gets past auth deterministically. Free-form steps the agent follows.
+login:
+  type: dev-login
+  steps:
+    - "expand the 'dev login' disclosure if present"
+    - "fill the handle/display-name fields and submit"
+
+# Personas to audit. seed: a hook invocation, or 'code-only' (reasoned from source).
+personas:
+  - { key: solo,     label: "solo self-hoster",   seed: "hooks/seed.sh solo" }
+  - { key: teammate, label: "invited teammate",   seed: "code-only" }
+  - { key: lead,     label: "agent-curious lead", seed: "hooks/seed.sh lead" }
+
+# Which lenses to run by default (the report shows each finding's lens verdict).
+lenses: [steve-jobs, nielsen, dieter-rams, wcag]
+
+# How the fan-out is shaped. 'area-x-lens' = one analyst per (area, lens) — most thorough.
+# 'area-all-lenses' = one analyst per area applying all chosen lenses — cheaper.
+fanout: area-all-lenses
+maxAreas: 8                # cap on discovered areas (logged if it truncates)
+
+modules:
+  hardData: true           # axe-core + Lighthouse + contrast across a viewport x theme matrix
+  adversarialVerify: true  # refute each finding vs code+screenshots before reporting
+  coverage: true           # track exercised vs missed routes/states
+  exports: [github-issues, markdown, regression]   # extra outputs
+
+# The viewport x theme matrix for capture + hard data (when modules.hardData).
+matrix:
+  viewports: [{ name: desktop, w: 1440, h: 900 }, { name: tablet, w: 834, h: 1112 }, { name: mobile, w: 390, h: 844 }]
+  themes: [light, dark]            # how to toggle theme is part of the agent's exploration
+  flags: [high-contrast, reduced-motion]   # optional extra states to capture once
+
+report:
+  tokensFrom: auto         # auto-extract CSS custom properties for on-brand mockups | or a path to a CSS/JSON file
+  host: localhost          # none | localhost | tailscale
+  port: 8088
+  livePrototypes: 3        # build clickable real-code prototypes for the top N issues (0 to disable)
+
+github:
+  repo: owner/name         # for the github-issues export; omit to infer from the repo's origin
+  labels: [ux, sj-audit]
+  dryRun: true             # print the issues instead of creating them, unless set false
