@@ -59,6 +59,27 @@ toggle** — the chrome switches; mockups stay pinned to the app's real tokens):
 - **Measured** — axe / Lighthouse / contrast scores (optional) · **Coverage** — what was exercised vs missed
 - A floating **My picks** panel that exports markdown or POSTs your picks back to the host
 
+## Viewing the report
+
+**Localhost is the default — no Tailscale needed.** The host binds to `127.0.0.1`, so the
+report is already private (nothing off your machine can reach it):
+
+```bash
+python3 scripts/serve.py --root <run-dir> --port 8088
+# open http://localhost:8088
+```
+
+The **My picks** panel and its `POST /feedback` round-trip work identically on localhost —
+picks land in `<run-dir>/feedback/picks-<ts>.{json,md}` regardless of bind address.
+
+Tailscale is only for the cross-device case: reviewing the report from a *different* machine
+(phone, another laptop) over your private tailnet, without exposing it on your LAN. Bind to
+your Tailscale IP instead:
+
+```bash
+python3 scripts/serve.py --root <run-dir> --port 8088 --bind "$(tailscale ip -4 | head -1)"
+```
+
 ## Per-app setup
 
 Each target app gets a thin config committed in its repo:
@@ -91,7 +112,7 @@ reference/
 workflows/audit.workflow.js       Fan-out: areas × lenses → verify → synthesize → coverage
 assets/report/                    Data-driven HTML report + builder
 scripts/
-  serve.py                        Static host + POST /feedback sink (bind to a Tailscale IP for private hosting)
+  serve.py                        Static host + POST /feedback sink (localhost by default; bind a Tailscale IP for cross-device)
   capture/matrix.mjs              Viewport × theme screenshot matrix
   a11y/                           axe-core, Lighthouse, computed-contrast collectors
   tokens/extract-tokens.mjs       Pull the app's CSS custom properties for on-brand mockups
@@ -103,7 +124,7 @@ scripts/
 
 - [`dev-browser`](https://github.com/gbasin/dev-browser) — `npm i -g dev-browser && dev-browser install`
 - `node` (report builder + modules) and `python3` (the host)
-- Optional: `npx` (Lighthouse), `gh` (GitHub-issues export), Tailscale (private hosting)
+- Optional: `npx` (Lighthouse), `gh` (GitHub-issues export), Tailscale (only for viewing the report from another device)
 
 ## Credits
 
