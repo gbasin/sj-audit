@@ -17,7 +17,10 @@ export const meta = {
 //   areas       : [{ key, title, screens:[..], files:[..], focus }]   (discovered live)
 //   personas    : [{ key, label }]
 //   modules     : { adversarialVerify, coverage }
-const a = (typeof args === 'object' && args) ? args : {}
+let a = args
+if (typeof a === 'string') { try { a = JSON.parse(a) } catch (e) { a = {} } }
+a = (a && typeof a === 'object') ? a : {}
+log(`args received: type=${typeof args} → areas=${Array.isArray(a.areas) ? a.areas.length : 'none'} lenses=${Array.isArray(a.lenses) ? a.lenses.length : 'none'}`)
 const RUN = a.run || ''
 const BRIEF = a.brief || `${RUN}/brief.md`
 const SHOTS = a.shots || `${RUN}/screenshots`
