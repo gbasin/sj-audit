@@ -49,7 +49,7 @@ design skill (`critique`, `impeccable`) instead.
 - A per-app config at `<target-repo>/.sj-audit/config.yaml` with working hooks. If it's
   missing, **create it** from `reference/config.example.yaml` and the hook contract in
   `reference/hook-contract.md` (read the app's README/run scripts to fill in launch/seed).
-- For modules: `npx` (Lighthouse via `npx lighthouse`), `gh` (GitHub-issues export), Tailscale (private hosting).
+- For modules: `npx` (Lighthouse via `npx lighthouse`), `gh` (GitHub-issues export), Tailscale (only for viewing the report from another device).
 
 ## Config + hooks (read these first)
 
