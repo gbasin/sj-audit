@@ -9,7 +9,8 @@
 //   results.json     { analyses:[...], synthesis:{...} }  (synthesis.json overrides if present)
 //   synthesis.json   {...}                                 (optional standalone)
 //   journey.json     [ {img,title,blurb,verdict,observation,tags,reverse,num} ]
-//   mockups.json     [ {title,subtitle,frames:[{label,tag,html|img,caption,live}]} ]
+//   mockups.json     [ {title,subtitle,surface,scope,frames:[{label,tag,html|img,caption,live}]} ]
+//                    surface: "mobile" | "web" | "both"; scope: "full" | "screen" | "modal" | "panel" | "component"
 //   metrics.json     { surfaces:[ {name,viewport,theme,lighthouse,axe,contrast} ] }
 //   coverage.json    { tested:[], missed:[], notes }       (or synthesis.coverage)
 //   tokens.json|css  app design tokens for on-brand mockups
