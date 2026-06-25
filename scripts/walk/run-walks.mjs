@@ -164,22 +164,29 @@ try {
       else if (st.action === 'type') { const loc = await pick(st.target, 'type', budget); await loc.type(String(st.value ?? '')); }
       else if (st.action === 'hover') { const loc = await pick(st.target, 'hover', budget); await loc.hover(); }
       else if (st.action === 'click') { const loc = await pick(st.target, 'click', budget); await loc.click({ timeout: budget }); result.clicks++; }
-      else if (st.action === 'assert') { const a = await checkAssert(typeof st.target === 'object' ? st.target : { type: 'text', value: st.value ?? st.target }); rec.ok = a.ok; rec.detail = a.ok ? 'present' : 'MISSING'; }
+      else if (st.action === 'assert') { const a = await checkAssert(typeof st.target === 'object' ? st.target : { type: 'text', value: st.value ?? st.target }); rec.ok = a.ok; rec.detail = a.ok ? 'present' : 'MISSING'; if (!a.ok) { const err = new Error('assert failed: ' + (st.note || st.value || 'state')); err.__assert = true; throw err; } }
       else { throw new Error('unknown action: ' + st.action); }
       if (st.action !== 'assert') rec.ok = true;
       await new Promise((r) => setTimeout(r, st.settle || 500));
     } catch (e) {
+      const isAssert = !!(e && e.__assert);   // failed state-assert (=failed) vs locator timeout (=stuck)
       rec.ok = false; rec.detail = String(e.message || e).split('\\n')[0].slice(0, 200);
       rec.ms = Date.now() - s0;
-      // screenshot the dead-end + capture what the user CAN see/click here
-      try { rec.shot = await saveScreenshot(await page.screenshot(), 'walk-' + slug(WALK.id) + '-' + String(i).padStart(2, '0') + '-STUCK-' + slug(st.note || st.action) + '.png'); } catch (e2) {}
+      // screenshot the failure point + capture what the user CAN see/click here
+      try { rec.shot = await saveScreenshot(await page.screenshot(), 'walk-' + slug(WALK.id) + '-' + String(i).padStart(2, '0') + '-' + (isAssert ? 'FAILED' : 'STUCK') + '-' + slug(st.note || st.action) + '.png'); } catch (e2) {}
       result.steps.push(rec);
       result.stepsRun = i + 1;
       if (!st.optional) {
-        result.outcome = 'stuck'; result.stuckAtStep = i;
-        result.reason = 'Could not ' + st.action + (st.note ? ' ("' + st.note + '")' : '') + ': ' + rec.detail;
-        result.deadEnd = { atStep: i, url: await page.url(), interactive: await interactives() };
+        result.stuckAtStep = i;
         result.errorsSurfaced = await visibleErrors();
+        if (isAssert) {
+          result.outcome = 'failed';
+          result.reason = 'Assertion failed' + (st.note ? ' ("' + st.note + '")' : '') + ': ' + rec.detail;
+        } else {
+          result.outcome = 'stuck';
+          result.reason = 'Could not ' + st.action + (st.note ? ' ("' + st.note + '")' : '') + ': ' + rec.detail;
+          result.deadEnd = { atStep: i, url: await page.url(), shot: rec.shot || null, interactive: await interactives() };
+        }
         throw { __stop: true };
       }
       continue; // optional step failed — keep going
