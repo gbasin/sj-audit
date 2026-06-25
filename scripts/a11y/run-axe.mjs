@@ -21,9 +21,13 @@ const viewport = A.viewport ? { width: +A.viewport.split('x')[0], height: +A.vie
 
 const evalFn = `async () => {
   await new Promise((res, rej) => { const s = document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/axe-core@4/axe.min.js'; s.onload=res; s.onerror=()=>rej(new Error('axe load failed')); document.head.appendChild(s); });
-  const r = await window.axe.run(document, { resultTypes: ['violations'] });
+  // target-size (WCAG 2.5.8, AA in 2.2) is OFF by default in axe — turn it on. Note axe usually
+  // returns it as INCOMPLETE (needs-review), not a hard violation, and exempts well-spaced targets;
+  // interaction.mjs is the deterministic px measure, this just carries the WCAG 2.5.8 mapping.
+  const r = await window.axe.run(document, { resultTypes: ['violations', 'incomplete'], rules: { 'target-size': { enabled: true } } });
   const wcagOf = (tags) => { for (const t of tags){ const m = /^wcag(\\d)(\\d)(\\d+)$/.exec(t); if (m) return m[1]+'.'+m[2]+'.'+m[3]; } return ''; };
-  const violations = r.violations.map(v => ({ id: v.id, impact: v.impact, help: v.help, wcag: wcagOf(v.tags), nodes: v.nodes.length }));
+  const map = (arr, needsReview) => arr.map(v => ({ id: v.id, impact: v.impact || (needsReview ? 'serious' : undefined), help: v.help, wcag: wcagOf(v.tags), nodes: v.nodes.length, needsReview: needsReview || undefined }));
+  const violations = map(r.violations, false).concat(map((r.incomplete || []).filter(v => v.id === 'target-size'), true));
   const counts = { critical:0, serious:0, moderate:0, minor:0 };
   for (const v of violations) if (counts[v.impact] != null) counts[v.impact] += 1;
   return { violations, counts };

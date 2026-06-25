@@ -22,6 +22,10 @@ Folder: `{{RUN}}/screenshots/`
 ## Confirmed observations & bugs (verified during the live run)
 {{CONFIRMED_OBSERVATIONS}}   <!-- numbered; mark each as VERIFIED-in-code (file:line), real-UI, or mock-artifact -->
 
+## Executed task walks (behavioral ground truth — outranks screenshot inference)
+{{EXECUTED_WALKS}}   <!-- one line per walk: [OUTCOME] id (persona) "story" — completed/stuck/failed + reason. A stuck/failed walk is a real user failing a real task: raise it P0/P1 and cite walk:<id>. If a walk COMPLETED a flow you suspect is broken, trust the walk. Full detail: $RUN/walks.json. Omit this block if modules.walks was off. -->
+
+
 ## Caveats (be intellectually honest)
 {{CAVEATS}}   <!-- e.g. agent surfaces ran on a MOCK; treat fixture timing as artifact, critique the real UI -->
 

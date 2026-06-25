@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sj-audit/walks",
+  "title": "sj-audit walk plan + result",
+  "description": "Two shapes. The PLAN (this schema's root) is authored by the orchestrator AFTER live exploration and fed to scripts/walk/run-walks.mjs. The RESULT ($defs.walkResult) is what the runner writes to walks.json — one entry per walk with the executed outcome. The plan is behavioral intent in user terms; the result is what actually happened when a first-time user (the driver) attempted it.",
+  "type": "object",
+  "required": ["walks"],
+  "additionalProperties": true,
+  "properties": {
+    "walks": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Author 1 walk per high-value user story (top personas x core jobs). Prefer stories that CROSS a populated/error/multi-step boundary the static screenshots can't reach (create something, complete a task, recover from an error, find a feature).",
+      "items": { "$ref": "#/$defs/walk" }
+    }
+  },
+  "$defs": {
+    "target": {
+      "description": "How to find an element, in user-perceivable terms first. A bare string resolves to role=button|link|tab|menuitem|text (in that order). Use an object for precision; an array tries each in order (resilient to copy drift).",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "$ref": "#/$defs/target" } },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "role": { "type": "string", "description": "ARIA role, e.g. button, link, tab, textbox" },
+            "name": { "type": "string", "description": "accessible name (substring, case-insensitive)" },
+            "text": { "type": "string" },
+            "label": { "type": "string", "description": "associated <label> text" },
+            "placeholder": { "type": "string" },
+            "testid": { "type": "string", "description": "data-testid" },
+            "css": { "type": "string", "description": "last resort — brittle" },
+            "exact": { "type": "boolean" },
+            "nth": { "type": "integer", "description": "pick the nth match (default: first)" }
+          }
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "required": ["action"],
+      "additionalProperties": false,
+      "properties": {
+        "action": { "type": "string", "enum": ["goto", "click", "fill", "type", "press", "key", "hover", "waitFor", "wait", "assert"], "description": "press/key take a key name in value (e.g. 'Enter'); wait takes ms in value; goto takes a path/url in value" },
+        "target": { "$ref": "#/$defs/target" },
+        "value": { "type": ["string", "number"], "description": "for fill/type (text), press/key (key name), goto (path), wait (ms)" },
+        "note": { "type": "string", "description": "the user-intent label for this step — shows in the report timeline and screenshot name" },
+        "optional": { "type": "boolean", "description": "if true, a failure here does NOT mark the walk stuck — the runner continues (use for dismissable nags, cookie banners)" },
+        "timeout": { "type": "integer", "description": "per-step ms budget (default --timeout). A non-optional step that times out = the user got STUCK here." },
+        "settle": { "type": "integer", "description": "ms to wait after the action before screenshotting (default 500)" }
+      }
+    },
+    "assertion": {
+      "type": "object",
+      "required": ["type", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["text", "selector", "url", "absent"], "description": "text=visible text present; selector=CSS present; url=current URL contains; absent=text NOT present" },
+        "value": { "type": "string" }
+      }
+    },
+    "walk": {
+      "type": "object",
+      "required": ["id", "story", "steps"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "stable kebab-case id, e.g. create-first-channel" },
+        "persona": { "type": "string" },
+        "story": { "type": "string", "description": "As a <persona>, I want <goal>, so that <benefit>." },
+        "goal": { "type": "string", "description": "plain-language definition of done — what proves the task succeeded" },
+        "startPath": { "type": "string", "description": "path joined to --base, e.g. /" },
+        "startUrl": { "type": "string", "description": "absolute URL (overrides startPath)" },
+        "viewport": { "type": "string", "description": "WxH, e.g. 390x844 to walk the story on mobile" },
+        "theme": { "type": "string", "enum": ["dark", "light"] },
+        "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/step" } },
+        "success": { "type": "array", "items": { "$ref": "#/$defs/assertion" }, "description": "ALL must pass for outcome=completed. Omit only for pure-exploration walks." }
+      }
+    },
+    "walkResult": {
+      "description": "Written by run-walks.mjs to walks.json under { base, walks:[walkResult], summary }. Read by the workflow (analyst grounding + reconciliation) and the report.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "persona": { "type": "string" },
+        "story": { "type": "string" },
+        "goal": { "type": "string" },
+        "outcome": { "type": "string", "enum": ["completed", "stuck", "failed", "error"], "description": "completed=goal reached; stuck=a required step's target never became actionable (discoverability/dead-end); failed=steps ran but goal not confirmed or an error surfaced; error=harness fault, not a product verdict" },
+        "stuckAtStep": { "type": ["integer", "null"] },
+        "reason": { "type": "string" },
+        "stepsPlanned": { "type": "integer" },
+        "stepsRun": { "type": "integer" },
+        "clicks": { "type": "integer" },
+        "elapsedMs": { "type": "integer" },
+        "errorsSurfaced": { "type": "array", "items": { "type": "string" } },
+        "steps": { "type": "array", "items": { "type": "object", "properties": { "i": { "type": "integer" }, "action": { "type": "string" }, "note": { "type": "string" }, "ok": { "type": "boolean" }, "ms": { "type": "integer" }, "detail": { "type": "string" }, "shot": { "type": "string", "description": "run-relative screenshot path" } } } },
+        "success": { "type": "array", "items": { "type": "object" } },
+        "deadEnd": { "type": "object", "description": "present when stuck: { atStep, url, shot, interactive:[{tag,role,name,w,h,small}] } — what the user could see/click at the dead-end, with hit-target sizes" },
+        "finalShot": { "type": "string" }
+      }
+    }
+  }
+}

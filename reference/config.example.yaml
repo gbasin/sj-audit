@@ -43,7 +43,10 @@ fanout: area-all-lenses
 maxAreas: 8                # cap on discovered areas (logged if it truncates)
 
 modules:
-  hardData: true           # axe-core + Lighthouse + contrast across a viewport x theme matrix
+  hardData: true           # axe-core (incl. target-size) + Lighthouse + contrast + interaction
+                           # (hit-target/tab-order/focus) across a viewport x theme matrix
+  walks: true              # DRIVE core user stories end-to-end (run-walks.mjs) — the behavioral
+                           # layer: did a first-timer actually complete the task, or get stuck/fail?
   adversarialVerify: true  # refute each finding vs code+screenshots before reporting
   coverage: true           # track exercised vs missed routes/states
   exports: [github-issues, markdown, regression]   # extra outputs

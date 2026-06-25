@@ -23,10 +23,11 @@ runs a real, grounded pipeline against the *running* app:
 |---|-------|--------------|
 | 1 | **Isolate** | Fresh git worktree + fresh DB + free ports, so it never collides with other agents or your dev server |
 | 2 | **Stand up** | Launch the app via the per-app hook; capture `BASE_URL` |
-| 3 | **Explore + capture** | `dev-browser` walks the whole first-run journey; labeled screenshot library + a viewport × theme matrix |
+| 3 | **Explore + capture** | `dev-browser` walks the whole first-run journey; labeled screenshot library + a viewport × theme matrix; measured hit-targets / tab-order / focus |
+| 3.5 | **Walk the stories** | Each core user story **driven end-to-end** through the live app → completed / **stuck** / **failed**, with dead-end screenshots — did a first-timer actually finish the job? |
 | 4 | **Ground-truth** | Verify what's *seen* against computed styles; separate real behavior from dev-mock artifacts |
 | 5 | **Brief** | One grounding doc so parallel analysts don't fight over the single running instance |
-| 6 | **Fan out** | Analysts (areas × lenses) → **adversarial verify** (refute each finding) → synthesize & rank → coverage critic |
+| 6 | **Fan out** | Analysts (areas × lenses, grounded on the executed walks) → **adversarial verify** (refute each finding) → synthesize & rank → **reconcile imagined vs executed** → coverage critic |
 | 7 | **Verify code bugs** | Any claimed defect is confirmed at `file:line` before it ships |
 | 8 | **Render solutions** | Each top issue as **Today / Refine / Bold** mockups in the app's real tokens, + live clickable prototypes for the top 1–3 |
 | 9 | **Deliver** | Self-contained HTML report, privately hosted; optional GitHub-issues / markdown / regression-diff exports |
@@ -43,6 +44,7 @@ runs a real, grounded pipeline against the *running* app:
 ### Why it's different
 
 - **Grounded, not vibes** — every finding cites a screenshot, a computed style, or a `file:line`.
+- **Behavioral, not just visual** — it *drives* the core user stories, so it can tell you whether a first-timer can actually finish the task — not just whether the screen looks right.
 - **Honest** — a workflow stage tries to *refute* each finding; automation artifacts get retracted in the report.
 - **Comparative** — it doesn't just list problems, it renders each fix three ways and lets you choose.
 - **Closed-loop** — your picks come straight back to the agent via a `/feedback` endpoint (or copy-paste).
@@ -55,8 +57,9 @@ toggle** — the chrome switches; mockups stay pinned to the app's real tokens):
 - **The journey** — annotated real screenshots with per-lens verdicts
 - **Top issues** — ranked, severity-filterable, deduped across areas + lenses
 - **Solution renderings** — Today / Refine / Bold per issue, each with a "Keep / Refine / Bold / Mix" picker + notes
+- **Task walks** — core user stories driven through the live app (completed / stuck / failed), with a step timeline, dead-end shots, and an imagined-vs-executed reconciliation
 - **User stories** (by persona + severity) and **all findings** by area
-- **Measured** — axe / Lighthouse / contrast scores (optional) · **Coverage** — what was exercised vs missed
+- **Measured** — axe (incl. tap-target size) / Lighthouse / contrast / tab-order + focus (optional) · **Coverage** — what was exercised vs missed
 - A floating **My picks** panel that exports markdown or POSTs your picks back to the host
 
 ## Viewing the report
@@ -105,16 +108,17 @@ The bundled **Atrium** config is a complete worked example.
 SKILL.md                          The 9-stage pipeline the agent follows
 reference/
   lenses/                         The 4 design lenses (Jobs, Nielsen, Rams, WCAG)
-  schemas/                        JSON schemas: analyst, synthesis, verdict, picks
+  schemas/                        JSON schemas: analyst, synthesis, verdict, picks, walks
   brief-template.md               Shared analyst brief skeleton
   hook-contract.md                The launch/seed/healthcheck contract
   config.example.yaml             Documented config
-workflows/audit.workflow.js       Fan-out: areas × lenses → verify → synthesize → coverage
+workflows/audit.workflow.js       Fan-out: areas × lenses → verify → synthesize → reconcile walks → coverage
 assets/report/                    Data-driven HTML report + builder
 scripts/
   serve.py                        Static host + POST /feedback sink (localhost by default; bind a Tailscale IP for cross-device)
+  walk/run-walks.mjs              Drive user stories end-to-end → walks.json (completed/stuck/failed)
   capture/matrix.mjs              Viewport × theme screenshot matrix
-  a11y/                           axe-core, Lighthouse, computed-contrast collectors
+  a11y/                           axe-core (incl. target-size), Lighthouse, contrast, interaction (hit-target/tab/focus)
   tokens/extract-tokens.mjs       Pull the app's CSS custom properties for on-brand mockups
   export/                         P0/P1 → GitHub issues
   regression/                     Diff two runs (fixed / still-broken / regressed)

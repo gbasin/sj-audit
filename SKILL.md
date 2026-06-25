@@ -29,6 +29,7 @@ tokens**) with:
 - **The journey** — annotated real screenshots from first load through the core flows, each with a per-lens verdict.
 - **Top issues** — ranked, severity-filterable cards, deduped across all areas + lenses.
 - **Solution renderings** — the centerpiece: each top issue shown **Today vs Refine vs Bold** as faithful mockups, plus **live clickable prototypes** for the top 1–3. Each has a picker ("Keep today / Refine / Bold / Mix") + notes.
+- **Task walks** — the behavioral layer: each core user story **driven through the live app**, marked completed / stuck / failed with a step timeline, dead-end screenshots, and a reconciliation of *imagined* vs *executed* friction (what the analysts confirmed, over-claimed, or missed).
 - **User stories** (filter by persona + severity) and **all findings** by area.
 - **Measured** (optional) — axe-core / Lighthouse / contrast scores across a viewport×theme matrix.
 - **Coverage** (optional) — what was exercised vs missed.
@@ -92,8 +93,28 @@ journey across every surface you discover (login → empty state → core flows 
 the product's signature action → error/empty/loading states → permalinks). Build a
 **labeled screenshot library** in `$RUN/screenshots/` with stable names (`01-login.png`, …).
 If `modules.hardData`, also run `scripts/capture/matrix.mjs` (viewport×theme matrix) and the
-`scripts/a11y/*` collectors per surface → `$RUN/metrics.json`. Seed personas via
-`hooks/seed.sh <persona>` where declared; for `code-only` personas, note them for code review.
+`scripts/a11y/*` collectors per surface → `$RUN/metrics.json`, **including `scripts/a11y/interaction.mjs`**
+(hit-target sizes, keyboard tab order, focus visibility — the measured detail you can't eyeball from a
+screenshot). Seed personas via `hooks/seed.sh <persona>` where declared; for `code-only` personas, note
+them for code review.
+
+**3.5. Walk the stories (the behavioral layer — `modules.walks`).** Capturing screens tells you what
+the UI *looks like*; it does NOT tell you whether a first-timer can *complete a job*. So after you've
+explored and know the real selectors/labels, **author `$RUN/walks.plan.json`** — one walk per
+high-value user story (top personas × core jobs), favoring stories that cross a populated / multi-step /
+error / discoverability boundary the static screenshots can't reach (create something, complete a task,
+recover from an error, *find* a feature). Each walk is a sequence of steps in user terms with a `success`
+assertion (the contract + examples are in `reference/schemas/walks.schema.json`). Then drive them:
+```
+node scripts/walk/run-walks.mjs --plan "$RUN/walks.plan.json" --base "$BASE_URL" --run "$RUN"
+```
+This writes `$RUN/walks.json` — each walk classified **completed** (goal reached) / **stuck** (a required
+step's target never became actionable → discoverability dead-end) / **failed** (steps ran but the goal
+wasn't reached or an error surfaced) / **error** (harness fault), with a per-step screenshot, the
+interactive elements + hit-target sizes captured *at any dead-end*, and any error text surfaced. A
+`stuck`/`failed` walk is the strongest evidence in the whole audit — it's a real user failing a real task.
+Don't author one giant brittle walk; prefer several focused, resilient ones (use role/text/testid targets,
+mark dismissable nags `optional`).
 
 **4. Ground-truth (discipline — non-negotiable).** Before asserting anything: verify what
 you *see* against computed styles (read `getComputedStyle`, not just the pixels — a repaint
@@ -113,10 +134,15 @@ synthesize/rank → coverage critic):
 Workflow({ scriptPath: "<skill>/workflows/audit.workflow.js",
            args: { run: "$RUN", brief: "$RUN/brief.md", sourceRoot: "...",
                    lenses: [...], areas: [...optional; else discovered...],
+                   walks: <parsed walks.json>, walksPath: "$RUN/walks.json",
                    modules: { adversarialVerify: true, coverage: true } } })
 ```
+Pass the executed walks in `args.walks` (the workflow runs in a sandbox with no fs — read
+`$RUN/walks.json` yourself and pass the object/array). Analysts then ground on the real outcomes
+(a stuck/failed walk outranks any screenshot guess), and a **reconciliation** stage attaches
+`synthesis.walkReport` — the imagined-vs-executed diff (confirmed / contradicted / missed dead-ends).
 Outputs `$RUN/results.json` (per-area stories/findings/solutions) and `$RUN/synthesis.json`
-(ranked issues, quick wins, bold bets, severity counts, coverage). Schemas in
+(ranked issues, quick wins, bold bets, severity counts, coverage, walkReport). Schemas in
 `reference/schemas/`.
 
 **7. Verify code-bug claims.** Any finding the synthesis labels a real code bug — re-open
@@ -164,5 +190,5 @@ rubrics into the brief so analysts apply them consistently.
 ## Conventions
 
 - Skill files are read-only references; all run output goes under `<target-repo>/.sj-audit/runs/<ts>/`.
-- Human-authored = YAML + hooks; machine-generated = JSON (`results/synthesis/journey/mockups/metrics/coverage/tokens.json`, `feedback/picks-*.json`).
+- Human-authored = YAML + hooks; agent-authored = `walks.plan.json` (the walk intent); machine-generated = JSON (`results/synthesis/journey/mockups/metrics/coverage/tokens/walks.json`, `feedback/picks-*.json`).
 - Timestamps come from the shell, not JS.

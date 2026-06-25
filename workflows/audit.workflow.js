@@ -5,6 +5,7 @@ export const meta = {
     { title: 'Analyze' },
     { title: 'Verify' },
     { title: 'Synthesize' },
+    { title: 'Reconcile' },
     { title: 'Coverage' },
   ],
 }
@@ -16,11 +17,13 @@ export const meta = {
 //   fanout      : "area-all-lenses" | "area-x-lens"
 //   areas       : [{ key, title, screens:[..], files:[..], focus }]   (discovered live)
 //   personas    : [{ key, label }]
+//   walks       : [walkResult]   (from run-walks.mjs / walks.json — real executed outcomes)
+//   walksPath   : path to walks.json (agents Read it for full step detail + dead-end shots)
 //   modules     : { adversarialVerify, coverage }
 let a = args
 if (typeof a === 'string') { try { a = JSON.parse(a) } catch (e) { a = {} } }
 a = (a && typeof a === 'object') ? a : {}
-log(`args received: type=${typeof args} → areas=${Array.isArray(a.areas) ? a.areas.length : 'none'} lenses=${Array.isArray(a.lenses) ? a.lenses.length : 'none'}`)
+log(`args received: type=${typeof args} → areas=${Array.isArray(a.areas) ? a.areas.length : 'none'} lenses=${Array.isArray(a.lenses) ? a.lenses.length : 'none'} walks=${Array.isArray(a.walks) ? a.walks.length : (a.walks && Array.isArray(a.walks.walks) ? a.walks.walks.length : 0)}`)
 const RUN = a.run || ''
 const BRIEF = a.brief || `${RUN}/brief.md`
 const SHOTS = a.shots || `${RUN}/screenshots`
@@ -30,7 +33,24 @@ const LENSES = Array.isArray(a.lenses) && a.lenses.length ? a.lenses : ['steve-j
 const FANOUT = a.fanout || 'area-all-lenses'
 const AREAS = Array.isArray(a.areas) ? a.areas : []
 const PERSONAS = Array.isArray(a.personas) && a.personas.length ? a.personas : [{ key: 'user', label: 'first-time user' }]
+const WALKS = Array.isArray(a.walks) ? a.walks : (a.walks && Array.isArray(a.walks.walks) ? a.walks.walks : [])
+const WALKS_PATH = a.walksPath || `${RUN}/walks.json`
 const MODS = a.modules || { adversarialVerify: true, coverage: true }
+
+// One-line summary of an executed walk — the behavioral ground truth analysts ground on.
+function compactWalk(w) {
+  const tiny = ((w.deadEnd && w.deadEnd.interactive) || []).filter((e) => e.small).map((e) => `${e.name || e.role} ${e.w}x${e.h}`)
+  const tail = w.outcome === 'completed' ? `${w.stepsRun}/${w.stepsPlanned} steps, ${w.clicks} clicks` : (w.reason || '')
+  return `[${(w.outcome || '?').toUpperCase()}] walk:${w.id} (${w.persona || 'user'}) "${w.story || ''}" — ${tail}`
+    + (w.errorsSurfaced && w.errorsSurfaced.length ? ` | errors surfaced: ${w.errorsSurfaced.join('; ')}` : '')
+    + (tiny.length ? ` | sub-24px targets at dead-end: ${tiny.join(', ')}` : '')
+}
+const WALKS_BLOCK = WALKS.length ? [
+  ``,
+  `EXECUTED WALKS — real outcomes from DRIVING the live app as these personas (this is behavioral ground truth; it OUTRANKS screenshot inference):`,
+  ...WALKS.map((w) => `- ${compactWalk(w)}`),
+  `Rules: if a walk touching your area got STUCK or FAILED, that is CONFIRMED — raise it (usually P0/P1), cite it as "walk:<id>" in \`where\`, set isCodeBug only if you also find the source cause, and do NOT soften it to "might". If a walk COMPLETED a flow you suspected was broken, trust the walk — don't invent friction it disproved. Full step detail + dead-end screenshots: ${WALKS_PATH}.`,
+].join('\n') : ''
 
 if (!AREAS.length) {
   log('No areas passed in args.areas — nothing to analyze. Discover surfaces live first, then pass them in.')
@@ -154,6 +174,21 @@ const COVERAGE_SCHEMA = {
   },
 }
 
+// Reconciles IMAGINED friction (analysts reasoning over screenshots+code) against what
+// actually happened when the app was DRIVEN — so the report can show where the analysts
+// were right, where they over-claimed, and what live dead-ends they missed entirely.
+const WALKREPORT_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  required: ['executed', 'verdict', 'confirmed', 'contradicted', 'missedDeadEnds'],
+  properties: {
+    executed: { type: 'object', additionalProperties: false, properties: { completed: { type: 'integer' }, stuck: { type: 'integer' }, failed: { type: 'integer' }, error: { type: 'integer' } } },
+    verdict: { type: 'string', description: '2-4 sentences: can a first-timer actually COMPLETE the core jobs, and where do they fall down? Lead with the task-success reality, not vibes.' },
+    confirmed: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['walkId', 'claim'], properties: { walkId: { type: 'string' }, claim: { type: 'string', description: 'an imagined finding/theme that a walk PROVED real' }, relatedIssueRank: { type: 'integer' } } } },
+    contradicted: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['claim', 'evidence'], properties: { claim: { type: 'string', description: 'an analyst-claimed problem the walk DISPROVED' }, evidence: { type: 'string', description: 'the walk outcome that refutes it' }, walkId: { type: 'string' } } } },
+    missedDeadEnds: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['walkId', 'what', 'severity'], properties: { walkId: { type: 'string' }, what: { type: 'string', description: 'a stuck/failed walk outcome NOT represented in the ranked issues — analysts missed it' }, severity: { type: 'string', enum: SEVS } } } },
+  },
+}
+
 const lensList = (ls) => ls.join(', ')
 
 function analystPrompt(area, lenses) {
@@ -166,6 +201,7 @@ function analystPrompt(area, lenses) {
     `STEP 1: Read the shared brief at ${BRIEF} (product, journey, confirmed bugs, code map, the lens rubrics, personas). Apply the rubrics exactly.`,
     screens ? `STEP 2: View these screenshots with the Read tool (they are PNGs): ${screens}.` : `STEP 2: (No screenshots listed for this area — ground on the brief + code.)`,
     files ? `STEP 3: Read the relevant code to ground behavior/copy/states/a11y: ${files}. (If a path is a directory, list it and read the entry point + 2-4 key files.)` : ``,
+    WALKS_BLOCK,
     ``,
     `FOCUS for your area: ${area.focus || 'the full first-time experience of this surface.'}`,
     ``,
@@ -286,6 +322,32 @@ const synthesis = await agent(synthPrompt, { label: 'synthesize', phase: 'Synthe
 
 // Attach retractions deterministically (don't rely on the model to remember them).
 if (synthesis && retracted.length) synthesis.retracted = retracted
+
+// ---------------- Reconcile imagined vs executed (only if walks were run) ----------------
+if (WALKS.length && synthesis) {
+  phase('Reconcile')
+  const topForRec = (synthesis.topIssues || []).map((t) => `#${t.rank} [${t.severity}] ${t.title} — ${t.why}`).join('\n')
+  const recPrompt = [
+    `You are reconciling a first-time-user audit of ${APP}. The analysts reasoned over SCREENSHOTS + CODE (they imagined where users would struggle). Separately, the app was DRIVEN through real user-story walks. Compare the two and report where they agree, where the analysts over-claimed, and what live dead-ends they missed.`,
+    ``,
+    `RANKED ISSUES the analysts produced:`,
+    topForRec || '(none)',
+    `Story themes: ${JSON.stringify(synthesis.storyThemes || [])}`,
+    ``,
+    `EXECUTED WALKS (ground truth — outcome=completed|stuck|failed|error):`,
+    ...WALKS.map((w) => `- ${compactWalk(w)}`),
+    ``,
+    `Produce the reconciliation:`,
+    `- executed: tally walks by outcome.`,
+    `- verdict: can a first-timer actually COMPLETE the core jobs? Lead with task-success reality.`,
+    `- confirmed: ranked issues / story themes that a stuck-or-failed walk PROVED real (cite walkId, and relatedIssueRank when it maps to a ranked issue).`,
+    `- contradicted: analyst claims a COMPLETED walk DISPROVED (e.g. "analysts called the create-flow confusing, but walk:create-channel completed in 4 steps"). This is where they guessed wrong — be honest.`,
+    `- missedDeadEnds: any walk that got stuck/failed on something NOT represented in the ranked issues — the analysts missed it. Assign a severity (stuck on a core job = P0/P1).`,
+    `Return ONLY the structured object.`,
+  ].join('\n')
+  const walkReport = await agent(recPrompt, { label: 'reconcile-walks', phase: 'Reconcile', schema: WALKREPORT_SCHEMA, effort: 'high' })
+  if (walkReport) synthesis.walkReport = walkReport
+}
 
 // ---------------- Coverage critic ----------------
 if (MODS.coverage && synthesis) {
